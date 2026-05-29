@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZN Documents - Premium Sub-Prefeitura</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <script src="qrcode.min.js"></script>
+</head>
+<body>
+    <div id="detran-container" class="hidden">
+        <div class="main-container">
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <img src="images/logo.png" alt="Logo" class="sidebar-logo">
+                    <div class="sidebar-title">
+                        <h1>PREFEITURA</h1>
+                        <span>Zona Norte</span>
+                    </div>
+                </div>
+                
+                <nav class="sidebar-nav">
+                    <button class="nav-item active" data-page="home">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                        Início
+                    </button>
+                    <button class="nav-item" data-page="cnh">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="16" rx="2"/>
+                            <path d="M7 8h10M7 12h10M7 16h6"/>
+                        </svg>
+                        Habilitação (CNH)
+                    </button>
+                    <button class="nav-item" data-page="vehicles">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9C2.1 11.3 2 11.7 2 12v4c0 .6.4 1 1 1h2"/>
+                            <circle cx="7" cy="17" r="2"/>
+                            <circle cx="17" cy="17" r="2"/>
+                        </svg>
+                        Meus Veículos
+                    </button>
+                    <button class="nav-item" data-page="consultation">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        Consulta Pública
+                    </button>
+                    <button class="nav-item" data-page="ipva">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="1" x2="12" y2="23"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                        IPVA
+                    </button>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <p>© 2026 Sub-Prefeitura Zona Norte</p>
+                    <small>Versão 2.4.0-Premium</small>
+                </div>
+            </aside>
+
+            <main class="content-area">
+                <header class="content-header">
+                    <div class="user-info">
+                        <div class="avatar" id="player-avatar">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <div class="user-details">
+                            <h2 id="player-name">Cidadão</h2>
+                            <p id="player-money">$0</p>
+                        </div>
+                    </div>
+                    <button class="close-ui-btn" onclick="closeUI()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </header>
+
+                <div class="page-container">
+                    <!-- HOME PAGE -->
+                    <div id="home-page" class="page active">
+                        <div class="welcome-banner">
+                            <h1>Bem-vindo ao Portal de Serviços</h1>
+                            <p>Gerencie seus documentos e veículos de forma rápida e segura.</p>
+                        </div>
+
+                        <div class="menu-grid">
+                            <button class="menu-card" data-page="cnh">
+                                <div class="menu-icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="16" rx="2"/>
+                                        <path d="M7 8h10M7 12h10M7 16h6"/>
+                                    </svg>
+                                </div>
+                                <h3>Habilitação</h3>
+                                <p>Solicite ou renove sua CNH aqui</p>
+                                <div class="status-badge" id="home-cnh-status">
+                                    <span class="status-indicator"></span>
+                                    <span class="status-text">Verificando...</span>
+                                </div>
+                            </button>
+
+                            <button class="menu-card" data-page="vehicles">
+                                <div class="menu-icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9C2.1 11.3 2 11.7 2 12v4c0 .6.4 1 1 1h2"/>
+                                        <circle cx="7" cy="17" r="2"/>
+                                        <circle cx="17" cy="17" r="2"/>
+                                    </svg>
+                                </div>
+                                <h3>Meus Veículos</h3>
+                                <p>Consulte e gerencie seus registros</p>
+                                <div class="count-badge" id="vehicle-count">0</div>
+                            </button>
+
+                            <button class="menu-card" data-page="documents">
+                                <div class="menu-icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                        <polyline points="10 9 9 9 8 9"/>
+                                    </svg>
+                                </div>
+                                <h3>Emissão de Docs</h3>
+                                <p>Solicitar novos documentos físicos</p>
+                            </button>
+
+                            <button class="menu-card" data-page="ipva">
+                                <div class="menu-icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="1" x2="12" y2="23"/>
+                                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                    </svg>
+                                </div>
+                                <h3>IPVA</h3>
+                                <p>Verifique débitos pendentes</p>
+                                <div class="debt-badge hidden" id="ipva-debt-alert">Pendente</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CNH PAGE -->
+                    <div id="cnh-page" class="page">
+                        <button class="back-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            Voltar
+                        </button>
+                        
+                        <div class="page-header">
+                            <h2>Carteira Nacional de Habilitação</h2>
+                            <p>Realize o teste teórico para obter sua permissão para dirigir.</p>
+                        </div>
+
+                        <div class="cnh-content" id="cnh-initial">
+                            <div class="test-info">
+                                <div class="info-card">
+                                    <h4>Requisitos</h4>
+                                    <ul>
+                                        <li>Idade mínima: 18 anos</li>
+                                        <li>Taxa de emissão: $500</li>
+                                        <li>Aprovação: 7 de 10 questões</li>
+                                    </ul>
+                                </div>
+                                <div class="info-card">
+                                    <h4>Processo</h4>
+                                    <p>O teste consiste em questões sobre sinalização e leis de trânsito vigentes no estado.</p>
+                                </div>
+                            </div>
+                            <button class="btn" id="start-test-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/>
+                                </svg>
+                                Iniciar Teste Teórico
+                            </button>
+                        </div>
+
+                        <div class="cnh-test hidden" id="cnh-test-container">
+                            <div class="test-header">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="test-progress"></div>
+                                </div>
+                                <span id="question-counter">Questão 1 de 10</span>
+                            </div>
+                            <div class="question-box">
+                                <h3 id="current-question">Carregando pergunta...</h3>
+                                <div class="options-grid" id="options-container">
+                                    <!-- Options will be injected here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="test-result hidden" id="test-result-container">
+                            <!-- Result will be injected here -->
+                        </div>
+                    </div>
+
+                    <!-- VEHICLES PAGE -->
+                    <div id="vehicles-page" class="page">
+                        <button class="back-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            Voltar
+                        </button>
+
+                        <div class="page-header-actions">
+                            <div class="page-header">
+                                <h2>Meus Veículos</h2>
+                                <p>Gerencie seus veículos registrados na Sub-Prefeitura.</p>
+                            </div>
+                            <button class="btn" id="register-vehicle-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14M12 5v14"/>
+                                </svg>
+                                Registrar Veículo
+                            </button>
+                        </div>
+                        
+                        <div class="vehicles-grid" id="vehicles-list">
+                            <!-- Vehicles will be injected here -->
+                        </div>
+
+                        <!-- Registration Form (Modal style within page) -->
+                        <div id="registration-form-container" class="hidden">
+                            <div class="selection-header">
+                                <h3>Registrar Veículo</h3>
+                                <p>Complete as informações técnicas para emissão do registro oficial.</p>
+                            </div>
+                            
+                            <div id="vehicle-selection-list" class="vehicle-selection-list">
+                                <!-- JS populated -->
+                            </div>
+
+                            <form id="vehicle-registration-form" class="registration-form hidden">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Placa do Veículo</label>
+                                        <input type="text" id="reg-plate" readonly>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Proprietário Legal</label>
+                                        <input type="text" id="reg-owner" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Cor Predominante</label>
+                                        <input type="text" id="reg-color" placeholder="Ex: Azul Metálico...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Marca / Modelo</label>
+                                        <input type="text" id="reg-description" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Série do Motor</label>
+                                    <input type="text" id="reg-engine" placeholder="Ex: EA111-2024MS">
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Tipo de Pneu</label>
+                                        <select id="reg-tires" class="custom-select">
+                                            <option value="Citadino (Standard)">Citadino (Standard)</option>
+                                            <option value="Desportivo (Sport)">Desportivo (Sport)</option>
+                                            <option value="Todo Terreno (Off-Road)">Todo Terreno (Off-Road)</option>
+                                            <option value="Drift">Drift</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Sistema de Transmissão</label>
+                                        <select id="reg-gearbox" class="custom-select">
+                                            <option value="Manual (Padrão)">Manual (Padrão)</option>
+                                            <option value="Automático">Automático</option>
+                                            <option value="Sequencial (DSG)">Sequencial (DSG)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-secondary" onclick="cancelRegistration()">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                        Confirmar Registro
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- CONSULTATION PAGE -->
+                    <div id="consultation-page" class="page">
+                        <button class="back-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            Voltar
+                        </button>
+                        
+                        <div class="dmv-management-container">
+                            <!-- Sidebar de Busca -->
+                            <div class="dmv-search-sidebar">
+                                <div class="sidebar-box-header">
+                                    <h3>CONSULTA DMV</h3>
+                                </div>
+                                <div class="search-input-wrapper">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                    <input type="text" id="consult-plate" placeholder="Placa ou nome do veículo...">
+                                </div>
+                                <button class="btn btn-primary btn-full" id="consult-btn">PESQUISAR</button>
+                            </div>
+
+                            <!-- Área de Detalhes -->
+                            <div class="dmv-details-area">
+                                <div class="details-header">
+                                    <h3>DETALHES DO VEÍCULO</h3>
+                                    <button class="btn btn-primary" id="save-dmv-btn" style="display: none;">SALVAR</button>
+                                </div>
+
+                                <div id="dmv-result-content" class="dmv-empty-state">
+                                    <p>Pesquise um veículo para visualizar ou editar as informações.</p>
+                                </div>
+
+                                <div id="dmv-editor" class="dmv-editor hidden">
+                                    <div class="editor-top-row">
+                                        <div class="vehicle-photo-container">
+                                            <img id="dmv-vehicle-img" src="images/not-found.webp" alt="Veículo">
+                                            <input type="text" id="dmv-img-url" placeholder="URL da Foto (https://...)">
+                                        </div>
+                                        <div class="vehicle-info-grid">
+                                            <div class="info-item">
+                                                <label>PLACA</label>
+                                                <input type="text" id="dmv-plate" readonly>
+                                            </div>
+                                            <div class="info-item">
+                                                <label>PROPRIETÁRIO</label>
+                                                <input type="text" id="dmv-owner" readonly>
+                                            </div>
+                                            <div class="info-row">
+                                                <div class="info-item">
+                                                    <label>MODELO</label>
+                                                    <input type="text" id="dmv-model" readonly>
+                                                </div>
+                                                <div class="info-item">
+                                                    <label>COR</label>
+                                                    <input type="text" id="dmv-color" readonly>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="editor-bottom-row">
+                                        <label>OBSERVAÇÕES DO VEÍCULO</label>
+                                        <textarea id="dmv-observations" placeholder="Adicione observações, infrações ou histórico deste veículo..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IPVA PAGE -->
+                    <div id="ipva-page" class="page">
+                        <button class="back-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            Voltar
+                        </button>
+                        <div class="page-header">
+                            <h2>IPVA</h2>
+                            <p>Regularize seus débitos para evitar a apreensão do seu veículo.</p>
+                        </div>
+
+                        <div class="ipva-summary">
+                            <div class="summary-card">
+                                <span>Total em Débitos</span>
+                                <h2 id="total-debt">$0</h2>
+                            </div>
+                            <div class="summary-card">
+                                <span>Veículos com Pendência</span>
+                                <h2 id="vehicles-with-debt">0</h2>
+                            </div>
+                        </div>
+
+                        <div class="ipva-list-container">
+                            <h3>Minhas Dívidas</h3>
+                            <div id="ipva-list">
+                                <!-- Debts will be injected here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DOCUMENTS ISSUANCE PAGE -->
+                    <div id="documents-page" class="page">
+                        <button class="back-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            Voltar
+                        </button>
+
+                        <div class="page-header">
+                            <h2>Emissão de Documentos</h2>
+                            <p>Solicite a versão física de seus documentos oficiais</p>
+                        </div>
+
+                        <div class="documents-grid" id="documents-issuance-list">
+                            <!-- Cards de documentos serão inseridos aqui -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- DOCUMENT VIEWER (FOR PHYSICAL ITEMS) -->
+    <div id="document-viewer" class="hidden">
+        <div class="overlay" onclick="closeDocumentViewer()"></div>
+        <div class="document-container">
+            <!-- CNH Template -->
+            <div id="cnh-template" class="doc-card cnh hidden">
+                <div class="doc-header cnh">
+                    <div class="header-left">
+                        <img src="images/logo.png" alt="Logo">
+                    </div>
+                    <div class="header-center">
+                        <span class="country">REPÚBLICA FEDERATIVA DO BRASIL</span>
+                        <span class="dept">MINISTÉRIO DA INFRAESTRUTURA</span>
+                        <span class="doc-title">CARTEIRA NACIONAL DE HABILITAÇÃO</span>
+                    </div>
+                </div>
+                <div class="doc-body cnh">
+                    <div class="photo-area">
+                        <div class="photo-placeholder">
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="info-area">
+                        <div class="info-row">
+                            <div class="info-block" style="width: 100%;">
+                                <label>NOME</label>
+                                <span id="view-cnh-name">JOÃO SILVA</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-block">
+                                <label>DATA NASCIMENTO</label>
+                                <span id="view-cnh-birth">00/00/0000</span>
+                            </div>
+                            <div class="info-block">
+                                <label>CPF</label>
+                                <span id="view-cnh-cpf">000.000.000-00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="doc-footer">
+                    <div class="signature">Assinado Digitalmente</div>
+                </div>
+            </div>
+
+            <!-- RG Template -->
+            <div id="rg-template" class="doc-card rg hidden">
+                <div class="doc-header rg">
+                    <span>REPÚBLICA FEDERATIVA DO BRASIL</span>
+                    <span>CARTEIRA DE IDENTIDADE</span>
+                </div>
+                <div class="doc-body rg">
+                    <div class="photo-area">
+                        <div class="photo-placeholder">
+                           <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="info-area">
+                        <div class="info-block">
+                            <label>NOME DO TITULAR</label>
+                            <span id="view-rg-name">JOÃO SILVA</span>
+                        </div>
+                        <div class="info-block">
+                            <label>REGISTRO GERAL</label>
+                            <span id="view-rg-number">00.000.000-0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Passport Template -->
+            <div id="passport-template" class="doc-card passport hidden">
+                <div class="doc-header passport">
+                    <div class="header-center">
+                        <span class="country">REPÚBLICA FEDERATIVA DO BRASIL</span>
+                        <span class="doc-title">PASSAPORTE</span>
+                    </div>
+                </div>
+                <div class="doc-body passport">
+                    <div class="photo-area passport">
+                        <div class="photo-placeholder">
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="info-area passport">
+                        <div class="info-row">
+                            <div class="info-block">
+                                <label>SOBRENOME / SURNAME</label>
+                                <span id="view-passport-surname">SILVA</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-block">
+                                <label>NOME / GIVEN NAMES</label>
+                                <span id="view-passport-name">JOÃO</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-block">
+                                <label>NACIONALIDADE / NATIONALITY</label>
+                                <span>BRASILEIRA</span>
+                            </div>
+                            <div class="info-block">
+                                <label>DATA DE NASCIMENTO / DATE OF BIRTH</label>
+                                <span id="view-passport-birth">00/00/0000</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-block">
+                                <label>NÚMERO DO DOCUMENTO / DOCUMENT NO.</label>
+                                <span id="view-passport-number">ZN000000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="doc-footer passport">
+                    <div class="mrz-code">
+                        P&lt;BRA<span id="mrz-name">SILVA&lt;&lt;JOAO&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span><br>
+                        <span id="mrz-line2">ZN000000&lt;0BRA0000000M0000000&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- IPVA RECEIPT MODAL -->
+    <div id="ipva-receipt-container" class="receipt-wrapper">
+        <div class="overlay" onclick="closeReceipt()"></div>
+        <div class="receipt">
+            <div class="receipt-header">
+                <div>
+                    <h2>RECIBO</h2>
+                    <span id="receipt-id">ZN#0000</span>
+                </div>
+                <span id="receipt-date">00/00/0000 00:00</span>
+            </div>
+            <div class="receipt-meta">
+                <p><b>Nome:</b> <span id="receipt-user">JOÃO SILVA</span></p>
+                <p><b>Placa:</b> <span id="receipt-plate">ABC1234</span></p>
+            </div>
+            <div class="receipt-divider"></div>
+            <div class="receipt-title">Detalhamento dos Débitos</div>
+            <div class="receipt-row">
+                <span>IPVA Base</span>
+                <span id="receipt-summary">$0</span>
+            </div>
+            <div class="receipt-row">
+                <span>Taxa Administrativa (18%)</span>
+                <span id="receipt-tax">$0</span>
+            </div>
+            <div class="receipt-divider"></div>
+            <div class="receipt-total">
+                <span>TOTAL</span>
+                <span id="receipt-total">$0</span>
+            </div>
+            <div class="barcode-area">
+                <svg viewBox="0 0 100 20" width="100%" height="40" preserveAspectRatio="none" style="background: transparent;">
+                    <rect x="5" y="2" width="2" height="16" fill="black" />
+                    <rect x="9" y="2" width="1" height="16" fill="black" />
+                    <rect x="12" y="2" width="3" height="16" fill="black" />
+                    <rect x="17" y="2" width="1" height="16" fill="black" />
+                    <rect x="20" y="2" width="2" height="16" fill="black" />
+                    <rect x="24" y="2" width="4" height="16" fill="black" />
+                    <rect x="30" y="2" width="1" height="16" fill="black" />
+                    <rect x="33" y="2" width="2" height="16" fill="black" />
+                    <rect x="37" y="2" width="1" height="16" fill="black" />
+                    <rect x="40" y="2" width="3" height="16" fill="black" />
+                    <rect x="45" y="2" width="2" height="16" fill="black" />
+                    <rect x="49" y="2" width="1" height="16" fill="black" />
+                    <rect x="52" y="2" width="4" height="16" fill="black" />
+                    <rect x="58" y="2" width="2" height="16" fill="black" />
+                    <rect x="62" y="2" width="1" height="16" fill="black" />
+                    <rect x="65" y="2" width="3" height="16" fill="black" />
+                    <rect x="70" y="2" width="1" height="16" fill="black" />
+                    <rect x="73" y="2" width="2" height="16" fill="black" />
+                    <rect x="77" y="2" width="4" height="16" fill="black" />
+                    <rect x="83" y="2" width="1" height="16" fill="black" />
+                    <rect x="86" y="2" width="2" height="16" fill="black" />
+                    <rect x="90" y="2" width="3" height="16" fill="black" />
+                    <rect x="95" y="2" width="2" height="16" fill="black" />
+                </svg>
+            </div>
+            <div class="receipt-actions">
+                <button class="btn btn-primary" id="confirm-payment-btn">Confirmar Pagamento</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
