@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('click', () => {
             const page = item.getAttribute('data-page');
             console.log('[ZN-DOCUMENTS] Sidebar Nav clicked:', page);
+            if (page === 'consultation') resetConsultationPage();
             if (page) navigateToPage(page);
         });
     });
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.menu-card').forEach(item => {
         item.addEventListener('click', () => {
             const page = item.getAttribute('data-page');
+            if (page === 'consultation') resetConsultationPage();
             if (page) navigateToPage(page);
         });
     });
@@ -240,13 +242,18 @@ async function finishTest() {
     resultContainer.classList.remove('hidden');
     resultContainer.innerHTML = '<div class="loading">Processando resultado...</div>';
     
-    // Calcular acertos no cliente
+    // Enviar respostas para validação segura no servidor
+    const payload = testQuestions.map((q, i) => {
+        return { question: q.question, answer: userAnswers[i] };
+    });
+
+    const result = await post('validateCNH', { answers: payload });
+    
+    // Para efeito visual, calcular no cliente também (mas quem decide é o servidor)
     let correctCount = 0;
     testQuestions.forEach((q, i) => {
         if (userAnswers[i] === q.correct) correctCount++;
     });
-
-    const result = await post('validateCNH', { correctAnswers: correctCount });
     
     resultContainer.innerHTML = `
         <div class="result-content ${result.success ? 'success' : 'fail'}">
@@ -283,7 +290,7 @@ async function loadMyVehicles() {
     list.innerHTML = vehicles.map(v => `
         <div class="vehicle-card" data-plate="${v.plate}">
             <div class="vehicle-header">
-                <span class="plate-label">${v.plate}</span>
+                <span class="plate-label" title="Clique para copiar" style="cursor: pointer;" onclick="copyPlate('${v.plate}')">${v.plate} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-left: 4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></span>
                 <span class="model-label">${v.description}</span>
             </div>
             <div class="vehicle-body">
@@ -291,12 +298,16 @@ async function loadMyVehicles() {
                 <p><b>Motor:</b> ${v.engine_serial || 'N/A'}</p>
                 <p><b>Pneus:</b> ${v.tire_type || 'Standard'}</p>
                 <p><b>IPVA:</b> <span class="${v.ipva_debt > 0 ? 'debt' : 'paid'}">${formatMoney(v.ipva_debt)}</span></p>
+                <button class="btn btn-primary" style="margin-top: 10px; width: 100%;" onclick="openMyVehicleEdit('${v.plate}', '${v.image_url || ''}', '${v.observations || ''}')">Editar Foto/Obs</button>
             </div>
         </div>
     `).join('');
 }
 
 async function startVehicleRegistration() {
+    const editContainer = document.getElementById('edit-form-container');
+    if (editContainer) editContainer.classList.add('hidden');
+    
     const container = document.getElementById('registration-form-container');
     const list = document.getElementById('vehicle-selection-list');
     const form = document.getElementById('manual-form');
@@ -371,6 +382,13 @@ async function loadIPVADebts() {
     debts.forEach(d => total += d.ipva_debt);
     document.getElementById('total-debt').textContent = formatMoney(total);
     document.getElementById('vehicles-with-debt').textContent = debts.length;
+
+    // Fetch and update Impostômetro
+    const impostometro = await post('getImpostometro', {});
+    const impostometroTotal = document.getElementById('impostometro-total');
+    if (impostometroTotal) {
+        impostometroTotal.textContent = formatMoney(impostometro || 0);
+    }
 
     if (!debts || debts.length === 0) {
         list.innerHTML = '<div class="empty-state"><p>Nenhuma pendência encontrada.</p></div>';
@@ -483,7 +501,7 @@ async function consultVehicle() {
     btn.disabled = true;
 
     try {
-        const result = await post('consultVehicle', query);
+        const result = await post('consultVehicle', { plate: query });
         btn.innerText = 'PESQUISAR';
         btn.disabled = false;
 
@@ -494,15 +512,21 @@ async function consultVehicle() {
         if (result.success) {
             if (emptyState) emptyState.classList.add('hidden');
             editor.classList.remove('hidden');
-            saveBtn.style.display = 'block';
+            if (saveBtn) saveBtn.style.display = 'none'; // Sempre escondido na pesquisa pública
 
-            // Popular campos do editor
+            // Popular campos do editor (apenas leitura na aba de pesquisa)
             document.getElementById('dmv-plate').value = result.plate;
-            document.getElementById('dmv-owner').value = result.owner;
+            document.getElementById('dmv-owner').value = result.owner_name || result.owner || 'N/A';
             document.getElementById('dmv-model').value = result.description;
             document.getElementById('dmv-color').value = result.color || 'N/A';
-            document.getElementById('dmv-img-url').value = result.image_url || '';
-            document.getElementById('dmv-observations').value = result.observations || '';
+            
+            const imgInput = document.getElementById('dmv-img-url');
+            imgInput.value = result.image_url || '';
+            imgInput.readOnly = true;
+            
+            const obsInput = document.getElementById('dmv-observations');
+            obsInput.value = result.observations || '';
+            obsInput.readOnly = true;
             
             const vehicleImg = document.getElementById('dmv-vehicle-img');
             vehicleImg.src = result.image_url || 'images/not-found.webp';
@@ -546,25 +570,94 @@ async function saveVehicleManagement() {
     if (result.success) {
         showNotification('Dados salvos com sucesso!', 'success');
     } else {
-        showNotification('Erro ao salvar dados.', 'error');
+        showNotification(result.message || 'Erro ao salvar dados.', 'error');
     }
 }
 
+// Editar Veículo do Próprio Usuário (Meus Veículos)
+window.openMyVehicleEdit = function(plate, currentImg, currentObs) {
+    // Esconde a lista e form de registro
+    document.getElementById('vehicles-list').classList.add('hidden');
+    const regContainer = document.getElementById('registration-form-container');
+    if (regContainer) regContainer.classList.add('hidden');
+    
+    // Mostra o formulário de edição
+    const editContainer = document.getElementById('edit-form-container');
+    editContainer.classList.remove('hidden');
+    
+    // Preenche os dados
+    document.getElementById('edit-plate').value = plate;
+    document.getElementById('edit-img-url').value = currentImg !== 'null' ? currentImg : '';
+    document.getElementById('edit-observations').value = currentObs !== 'null' ? currentObs : '';
+};
+
+window.cancelVehicleEdit = function() {
+    document.getElementById('edit-form-container').classList.add('hidden');
+    document.getElementById('vehicles-list').classList.remove('hidden');
+};
+
+window.submitVehicleEdit = async function() {
+    const data = {
+        plate: document.getElementById('edit-plate').value,
+        image_url: document.getElementById('edit-img-url').value,
+        observations: document.getElementById('edit-observations').value
+    };
+
+    const result = await post('saveVehicleManagement', data);
+    
+    if (result.success) {
+        showNotification('Dados do veículo atualizados com sucesso!', 'success');
+        cancelVehicleEdit();
+        loadMyVehicles(); // Recarrega a lista
+    } else {
+        showNotification(result.message || 'Erro ao atualizar dados.', 'error');
+    }
+};
+
 // Helpers
+
+function resetConsultationPage() {
+    const input = document.getElementById('consult-plate');
+    if (input) input.value = '';
+    
+    const emptyState = document.querySelector('.dmv-empty-state');
+    const editor = document.getElementById('dmv-editor');
+    
+    if (emptyState) {
+        emptyState.classList.remove('hidden');
+        emptyState.innerHTML = '<p>Pesquise um veículo para visualizar ou editar as informações.</p>';
+    }
+    if (editor) editor.classList.add('hidden');
+    
+    const saveBtn = document.getElementById('save-dmv-btn');
+    if (saveBtn) saveBtn.style.display = 'none';
+}
+
 async function post(event, data) {
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
+        
         const resp = await fetch(`https://${GetParentResourceName()}/${event}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json; charset=UTF-8',
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
         if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
         return await resp.json();
     } catch (error) {
         console.error(`[ZN-DOCUMENTS] Fetch error on ${event}:`, error);
-        return { success: false, message: "Erro de conexão com o servidor." };
+        let errorMsg = "Erro de conexão com o servidor.";
+        if (error.name === 'AbortError') {
+            errorMsg = "Tempo de resposta excedido (Timeout).";
+        }
+        return { success: false, message: errorMsg };
     }
 }
 
@@ -583,6 +676,28 @@ function showNotification(msg, type) {
     });
 }
 
+function copyPlate(plate) {
+    const textarea = document.createElement('textarea');
+    textarea.value = plate;
+    // Evitar que o scroll desça ao criar o elemento
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showNotification(`Placa ${plate} copiada!`, 'success');
+        } else {
+            showNotification('Erro ao copiar placa', 'error');
+        }
+    } catch (err) {
+        showNotification('Erro ao copiar placa', 'error');
+    }
+    document.body.removeChild(textarea);
+}
+
+window.copyPlate = copyPlate;
 window.selectOption = selectOption;
 window.closeUI = closeUI;
 window.closeDocumentViewer = closeDocumentViewer;

@@ -229,7 +229,7 @@ end)
 
 -- Validar CNH
 RegisterNUICallback('validateCNH', function(data, cb)
-    DebugPrint("Validando CNH com " .. data.correctAnswers .. " respostas corretas")
+    DebugPrint("Validando CNH (Respostas enviadas ao servidor para avaliação)")
     
     lib.callback('zn_documents:server:validateCNH', false, function(result)
         cb(result)
@@ -243,7 +243,7 @@ RegisterNUICallback('validateCNH', function(data, cb)
                 QBCore.Functions.Notify(Config.Lang['cnh_failed'], "error")
             end
         end
-    end, data.correctAnswers)
+    end, data)
 end)
 
 -- Emitir documento físico
@@ -343,6 +343,13 @@ RegisterNUICallback('getIPVADebts', function(data, cb)
     end)
 end)
 
+-- Obter Impostômetro
+RegisterNUICallback('getImpostometro', function(data, cb)
+    lib.callback('zn_documents:server:getImpostometro', false, function(total)
+        cb(total)
+    end)
+end)
+
 -- Pagar IPVA
 RegisterNUICallback('payIPVA', function(data, cb)
     DebugPrint("Pagando IPVA da placa: " .. data.plate)
@@ -364,6 +371,13 @@ RegisterNUICallback('notify', function(data, cb)
         QBCore.Functions.Notify(data.message, data.type or "primary")
     end
     cb('ok')
+end)
+
+-- Salvar informações de gestão do DMV
+RegisterNUICallback('saveVehicleManagement', function(data, cb)
+    lib.callback('zn_documents:server:saveVehicleManagement', false, function(result)
+        cb(result)
+    end, data)
 end)
 
 -- Obter cores disponíveis

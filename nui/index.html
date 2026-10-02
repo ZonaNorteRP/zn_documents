@@ -305,6 +305,29 @@
                                 </div>
                             </form>
                         </div>
+                        
+                        <!-- Edit Form (Modal style within page) -->
+                        <div id="edit-form-container" class="hidden" style="margin-top: 20px;">
+                            <div class="selection-header">
+                                <h3>Editar Veículo</h3>
+                                <p>Atualize a foto e as observações do seu veículo.</p>
+                            </div>
+                            <div class="registration-form">
+                                <div class="form-group">
+                                    <label>URL da Foto (https://...)</label>
+                                    <input type="text" id="edit-img-url" placeholder="URL da nova foto">
+                                </div>
+                                <div class="form-group" style="margin-top: 15px;">
+                                    <label>Observações do Veículo</label>
+                                    <textarea id="edit-observations" placeholder="Suas anotações pessoais sobre o veículo..."></textarea>
+                                </div>
+                                <div class="form-actions" style="margin-top: 20px;">
+                                    <button class="btn btn-danger" onclick="cancelVehicleEdit()" style="margin-right: 10px;">Cancelar</button>
+                                    <button class="btn btn-primary" onclick="submitVehicleEdit()">Salvar Alterações</button>
+                                </div>
+                                <input type="hidden" id="edit-plate">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- CONSULTATION PAGE -->
@@ -400,6 +423,10 @@
                             <div class="summary-card">
                                 <span>Veículos com Pendência</span>
                                 <h2 id="vehicles-with-debt">0</h2>
+                            </div>
+                            <div class="summary-card" style="background: rgba(46, 204, 113, 0.1); border: 1px solid rgba(46, 204, 113, 0.3);">
+                                <span style="color: #2ecc71;">🏆 IMPOSTÔMETRO DETRAN</span>
+                                <h2 id="impostometro-total" style="color: #2ecc71;">$0</h2>
                             </div>
                         </div>
 

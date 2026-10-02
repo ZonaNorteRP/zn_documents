@@ -137,24 +137,25 @@ Config.VehicleRegistration = {
 
 -- Sistema de IPVA
 Config.IPVA = {
-    enabled = true, -- Ativar sistema de IPVA
-    taxPerHour = 50, -- Valor do IPVA acumulado por hora
-    cooldownMinutes = 60, -- Tempo em minutos para acumular IPVA (60 = 1 hora in-game)
-    
-    -- Sistema de Juros
-    interestEnabled = true, -- Ativar juros sobre dívidas
-    interestThreshold = 20000, -- Valor mínimo de dívida para começar a cobrar juros - 20 mil
-    interestRate = 5, -- Porcentagem de juros (5 = 5% sobre o valor da dívida)
-    interestCooldownMinutes = 120, -- Tempo em minutos para aplicar juros (120 = 2 horas)
-    
-    -- Sistema de Apreensão por Dívida
-    seizeEnabled = true, -- Ativar apreensão de veículos por dívida
-    seizeThreshold = 30000, -- Valor de dívida para apreender o veículo (deletar do banco) - 30 mil
-    seizeNotifyPlayer = true, -- Notificar o player quando o veículo for apreendido
-    
+    enabled = true, -- Ativar/desativar todo o sistema de IPVA
+
+    -- =============================================================
+    -- COBRANÇA FIXA POR CICLO
+    -- Valor cobrado de IPVA por ciclo (independente do veículo)
+    taxPerHour = 50, -- R$ cobrado a cada ciclo completo
+
+    -- Tempo do ciclo em MINUTOS. Ex: 60 = cobra a cada 1 hora real
+    -- Use 1440 para cobrar 1x por dia, 60 para 1x por hora, 10 para testes
+    cooldownMinutes = 60,
+    -- =============================================================
+
+    -- Teto máximo de dívida. Quando atingir esse valor, para de crescer.
+    -- Serve também como threshold de apreensão.
+    seizeThreshold = 30000,
+
     -- Notificações de IPVA atrasado
-    notifyDebt = true, -- Notificar player quando tem dívida
-    notifyInterval = 30, -- Intervalo em minutos para notificar novamente
+    notifyDebt = true,       -- Notificar player quando tem dívida
+    notifyInterval = 30,     -- Intervalo em minutos para re-notificar
 }
 
 -- Sistema de Consulta

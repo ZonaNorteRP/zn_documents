@@ -1,186 +1,167 @@
-# 🚗 Jack Detran
+# ZN Documents - Sistema de Documentos e DETRAN
 
-Sistema completo de **Detran para FiveM**, inspirado no funcionamento real do DETRAN brasileiro.
-
-Este recurso permite **registro e consulta de veículos**, **sistema de CNH com prova teórica**, **IPVA automático**, além de uma **interface NUI (HTML, CSS e JavaScript)** moderna e intuitiva.
-
----
-
-## ✨ Funcionalidades
-
-### 🪪 Sistema de CNH
-
-* Prova teórica com perguntas configuráveis
-* Quantidade mínima de acertos para aprovação
-* Primeira validação gratuita (opcional)
-* Taxa para refazer a prova
-* Validação persistente via banco de dados
-
-### 🚘 Registro de Veículos (Estilo DETRAN)
-
-* Registro de veículos por **placa**
-* Associação do veículo ao proprietário
-* Limite máximo de veículos por jogador
-* Atualização de dados do veículo
-* Exclusão de registros
-* Validação de placas (letras e números)
-
-### 💰 Sistema de IPVA
-
-* Cobrança automática por tempo (hora in-game)
-* Acúmulo de dívida
-* Limite máximo de débito
-* Notificações periódicas de dívida
-* Pagamento manual do IPVA
-
-### 🔎 Consulta de Veículos
-
-* Consulta pública por placa
-* Exibição do dono do veículo (opcional)
-* Status do IPVA
-* Consulta gratuita ou paga (configurável)
-
-### 🗺️ Detran no Mapa
-
-* Blip configurável no mapa
-* Marker de interação
-* Distância personalizada para interação
-
-### 🖥️ Interface NUI
-
-* Desenvolvida em **HTML + CSS + JavaScript**
-* Interface limpa e responsiva
-* Comunicação segura com Lua (NUI Callbacks)
+Script completo de Documentos e DETRAN para FiveM, desenvolvido para o servidor Zona Norte RP.
+Inspirado no funcionamento real do DETRAN brasileiro.
 
 ---
 
-## 🧩 Dependências
+## Funcionalidades
 
-> Ajuste conforme seu framework
+### Emissao de Documentos
 
-* **QBCore** ou compatível
-* **MySQL-Async** ou **oxmysql**
-* FiveM Artifact atualizado
+| Documento | Item | Descricao |
+|---|---|---|
+| Identidade (RG) | id_card | Numero fixo e persistente por personagem |
+| Habilitacao (CNH) | driver_license | Emitida apos aprovacao no teste teorico |
+| Passaporte | passport | Numero fixo e persistente por personagem |
 
----
-
-## 📦 Instalação
-
-1. Baixe ou clone o repositório:
-
-```bash
-git clone https://github.com/seuusuario/jack detran
-```
-
-2. Coloque a pasta na pasta `resources` do seu servidor:
-
-```bash
-resources/[qb]/jack detran
-```
-
-3. Importe o arquivo SQL no seu banco de dados
-
-4. Adicione no `server.cfg`:
-
-```cfg
-ensure jack detran
-```
-
-5. Configure o arquivo `config.lua` conforme sua cidade
+Os numeros de RG e Passaporte sao gerados uma unica vez e salvos no banco de dados.
 
 ---
 
-## 🗄️ Banco de Dados (SQL)
+### Teste Teorico da CNH (100% Server-Side)
 
-O script utiliza banco de dados para armazenar:
-
-* CNH dos jogadores
-* Veículos registrados
-* Débitos de IPVA
-
-### Exemplo de tabelas utilizadas:
-
-* `player_cnh`
-* `detran_vehicles`
-
-> O arquivo `.sql` acompanha o recurso e deve ser importado antes do uso.
+- Banco de perguntas configuravel em config.lua
+- Perguntas embaralhadas aleatoriamente pelo servidor a cada prova
+- Correcao inteiramente no servidor - impossivel trapacear via executor NUI
+- Quantidade de questoes e minimo de acertos configuravel
 
 ---
 
-## ⚙️ Configuração
+### Registro de Veiculos (CRLV Digital)
 
-Toda a personalização do script é feita pelo arquivo:
-
-```lua
-config.lua
-```
-
-### Principais opções configuráveis:
-
-* Ativar/desativar **Debug**
-* Localização do **Detran** no mapa
-* Perguntas da **CNH**
-* Valores de **registro, atualização e exclusão** de veículos
-* Sistema de **IPVA** (valor, tempo, notificações)
-* Consulta pública por placa
-* Textos da interface (Lang)
-
-O sistema é totalmente modular e fácil de adaptar.
+- A placa e a chave primaria - todos os dados do veiculo sao vinculados a ela
+- Campos: proprietario, cor, modelo, cambio, pneu, motor, foto URL e observacoes
+- Edicao inline direto na aba Meus Veiculos sem troca de tela
+- Botao para copiar a placa (compativel com CEF do FiveM)
+- Sanitizacao server-side em todos os campos de texto
 
 ---
 
-## 🎮 Como Usar
+### Seguranca do Back-end
 
-1. Vá até o **Detran** no mapa
-2. Pressione **E** para abrir o menu
-3. Escolha entre:
-
-   * Validar CNH
-   * Registrar veículo
-   * Consultar placa
-   * Pagar IPVA
-   * Atualizar ou deletar registros
+- Sem SQL Injection: 100% das queries usam prepared statements
+- Autorizacao por propriedade: servidor valida citizenid antes de qualquer edicao
+- RemoveMoney atomico: se o pagamento falhar, o banco nao e alterado
+- Validacao da CNH no servidor: impossivel enviar pontuacao falsa pela NUI
+- Inputs sanitizados com limites de caracteres aplicados no servidor
 
 ---
 
-## 🧪 Debug
+### Sistema de IPVA Dinamico
 
-Para ativar logs detalhados no console:
+O IPVA e calculado em tempo real, sem loops de banco de dados rodando em segundo plano.
 
-```lua
-Config.Debug = true
-```
+Como funciona:
+1. Ao pagar o IPVA, last_ipva_update e gravado com a data/hora atual
+2. Ao consultar, o servidor calcula quantos ciclos (cooldownMinutes) se passaram
+3. Divida = ciclos_passados x taxPerHour
+4. A divida nao ultrapassa o seizeThreshold configurado
 
-Os logs aparecerão com a tag:
+Resultado: 0% de CPU quando ninguem consulta. Sem UPDATE em massa no banco a cada hora.
 
-```
-[JACK DETRAN DEBUG]
-```
+#### Impostometro DETRAN
 
----
-
-## 📸 Preview
-
-> Adicione prints ou gifs da NUI aqui para valorizar o projeto.
+Cada pagamento de IPVA acumula o valor em um Impostometro global visivel na NUI.
+Persiste entre reinicializacoes do servidor via SetResourceKvpInt.
 
 ---
 
-## 📄 Licença
+### Consulta Publica de Veiculos
 
-## 📄 Licença
-
-© 2026 Jack Detran. Todos os direitos reservados.
-
-Este script é de uso **exclusivo do autor**.
-É **proibido** copiar, modificar, redistribuir, revender ou utilizar este código,
-total ou parcialmente, sem autorização expressa do autor.
-
+- Consulta por placa ou nome do proprietario
+- Aba estritamente somente leitura - nenhum campo editavel
+- Resetada automaticamente ao sair dela
+- Busca limitada a 20 caracteres no servidor
 
 ---
 
-## 🤝 Créditos
+### Meus Veiculos
 
-Desenvolvido por **[Seu Nome / Sua Cidade RP]**
-Baseado em sistemas reais do DETRAN brasileiro.
+- Lista todos os veiculos do jogador registrados no DETRAN
+- Botao para copiar a placa
+- Edicao inline de foto e observacoes sem sair da aba
+- Formulario com botoes Salvar e Cancelar
 
-Contribuições e sugestões são bem-vindas 🚀
+---
+
+## Dependencias
+
+- QBCore
+- oxmysql
+- ox_inventory
+- qbx_idcard
+- ox_lib
+
+---
+
+## Instalacao
+
+1. Coloque zn_documents em resources/jackscripts/
+2. As tabelas SQL sao criadas automaticamente ao iniciar o recurso
+3. Adicione ao server.cfg: ensure zn_documents
+4. Configure o config.lua
+
+---
+
+## Banco de Dados (criado automaticamente)
+
+| Tabela | Conteudo |
+|---|---|
+| detran_vehicles | Veiculos registrados (chave: plate) |
+| detran_documents | Historico de emissao de documentos |
+| detran_cnh | Registro de validacao de CNH |
+| detran_citizen_data | Numeros fixos de RG e Passaporte por personagem |
+
+---
+
+## Configuracao (config.lua)
+
+IPVA:
+  taxPerHour = 50        (valor por ciclo)
+  cooldownMinutes = 60   (duracao do ciclo: 60=1h, 1440=1 dia, 10=testes)
+  seizeThreshold = 30000 (teto maximo de divida)
+
+Veiculos:
+  registrationPrice = 500
+  updatePrice = 250
+  deletePrice = 100
+  maxVehiclesPerPlayer = 50
+
+CNH:
+  questionsRequired = 10
+  correctAnswersNeeded = 7
+  validationPrice = 0 (gratuito)
+
+Consulta:
+  allowPublicConsultation = true
+  showOwnerName = true
+  consultationPrice = 0
+
+---
+
+## Integracao com MDT
+
+Outros scripts de policia podem usar o export:
+  exports[zn_documents]:consultVehicle(placa)
+Retorna: registered, owner, ipva_debt (calculado dinamicamente), status
+
+---
+
+## Debug
+
+Config.Debug = true  -- Ativa logs com tag [ZN-DOCUMENTS DEBUG]
+
+---
+
+## Licenca
+
+(c) 2026 ZN Documents - Zona Norte RP. Todos os direitos reservados.
+Proibido copiar, redistribuir ou revender sem autorizacao expressa.
+
+---
+
+## Creditos
+
+Desenvolvido por JackZinho para o servidor Zona Norte RP.
+Baseado no funcionamento real do DETRAN brasileiro.

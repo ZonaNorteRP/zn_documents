@@ -39,66 +39,26 @@ CreateThread(function()
             INDEX idx_citizenid (citizenid)
         )
     ]], {})
+
+    -- Tabela para armazenar números de documentos PERSISTENTES por cidadão
+    -- Garante que o RG e Passaporte sejam sempre os mesmos (não aleatórios a cada sessão)
+    MySQL.Async.execute([[
+        CREATE TABLE IF NOT EXISTS detran_citizen_data (
+            citizenid VARCHAR(50) PRIMARY KEY,
+            rg_number VARCHAR(20) NOT NULL,
+            passport_num VARCHAR(20) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ]], {})
     
     DebugPrint("Tabelas do banco de dados criadas/verificadas com sucesso!")
 end)
 
--- Thread para acumular IPVA
-if Config.IPVA.enabled then
-    CreateThread(function()
-        while true do
-            Wait(Config.IPVA.cooldownMinutes * 60000) -- Converter minutos para ms
-            
-            -- Acumular IPVA em todos os veículos registrados
-            MySQL.Async.execute([[
-                UPDATE detran_vehicles 
-                SET ipva_debt = ipva_debt + ?,
-                    last_ipva_update = NOW()
-            ]], {
-                Config.IPVA.taxPerHour
-            }, function(affectedRows)
-                DebugPrint("IPVA acumulado em " .. affectedRows .. " veículos!")
-            end)
-        end
-    end)
-end
+-- As threads de IPVA em loop foram removidas.
+-- O IPVA agora é calculado dinamicamente em tempo real (On-the-fly) pelo callbacks.lua,
+-- usando o tempo decorrido desde o last_ipva_update, garantindo 0% de uso de CPU do servidor
+-- e evitando problemas de lag ou dívidas infinitas abusivas.
 
--- Thread para aplicar juros sobre dívidas
-if Config.IPVA.enabled and Config.IPVA.interestEnabled then
-    CreateThread(function()
-        while true do
-            Wait(Config.IPVA.interestCooldownMinutes * 60000) -- Converter minutos para ms
-            
-            -- Aplicar juros apenas em dívidas acima do threshold
-            MySQL.Async.execute([[
-                UPDATE detran_vehicles 
-                SET ipva_debt = ipva_debt + (ipva_debt * ? / 100)
-                WHERE ipva_debt >= ?
-            ]], {
-                Config.IPVA.interestRate,
-                Config.IPVA.interestThreshold
-            }, function(affectedRows)
-                if affectedRows > 0 then
-                    DebugPrint("Juros de " .. Config.IPVA.interestRate .. "% aplicados em " .. affectedRows .. " veículos!")
-                    
-                    -- Notificar players online sobre juros aplicados
-                    local xPlayers = QBCore.Functions.GetQBPlayers()
-                    for _, Player in pairs(xPlayers) do
-                        local citizenid = Player.PlayerData.citizenid
-                        MySQL.Async.fetchScalar('SELECT SUM(ipva_debt) FROM detran_vehicles WHERE citizenid = ? AND ipva_debt >= ?', 
-                        {citizenid, Config.IPVA.interestThreshold}, function(totalDebt)
-                            if totalDebt and totalDebt > 0 then
-                                local interestAmount = math.floor(totalDebt * Config.IPVA.interestRate / 100)
-                                TriggerClientEvent('QBCore:Notify', Player.PlayerData.source, 
-                                    string.format(Config.Lang['interest_applied'], interestAmount), "error", 5000)
-                            end
-                        end)
-                    end
-                end
-            end)
-        end
-    end)
-end
 -- Thread para apreender veículos com dívida alta
 -- ... (mantenha o código de apreensão aqui)
 

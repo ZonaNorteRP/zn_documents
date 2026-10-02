@@ -1,5 +1,53 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 
+local function CalculateDynamicIPVA(vehicle)
+    if not vehicle then return 0 end
+    
+    local staticDebt = tonumber(vehicle.ipva_debt) or 0
+    local lastUpdate = vehicle.last_ipva_update
+    
+    if not lastUpdate then return staticDebt end
+    
+    -- oxmysql returns timestamp as milliseconds Se for string, ignora
+    local lastTimeMs = type(lastUpdate) == "number" and lastUpdate or (type(lastUpdate) == "string" and 0 or os.time() * 1000)
+    if type(lastUpdate) == "string" then return staticDebt end 
+    
+    local minutesPassed = math.floor((os.time() - (lastTimeMs / 1000)) / 60)
+    
+    -- Quantos "ciclos" (ex: 60 minutos) se passaram desde o último pagamento/atualização?
+    local cooldown = Config.IPVA.cooldownMinutes or 60
+    local intervalsPassed = math.floor(minutesPassed / cooldown)
+    
+    if intervalsPassed <= 0 then return staticDebt end
+    
+    -- Valor da taxa configurado (ex: 50 por ciclo)
+    local taxRate = Config.IPVA.taxPerHour or 50
+    local addedDebt = intervalsPassed * taxRate
+    
+    local maxDebt = Config.IPVA.seizeThreshold or 30000 -- Teto máximo
+    local totalDebt = staticDebt + addedDebt
+    
+    if totalDebt > maxDebt then totalDebt = maxDebt end
+    
+    return math.floor(totalDebt)
+end
+
+-- =================================================================
+-- HELPER: Busca ou cria números de documento PERSISTENTES no banco
+-- Garante que RG e Passaporte sejam sempre os mesmos para o cidadão
+-- =================================================================
+local function GetOrCreateCitizenData(citizenid)
+    local existing = MySQL.query.await('SELECT rg_number, passport_num FROM detran_citizen_data WHERE citizenid = ?', {citizenid})
+    if existing and existing[1] then
+        return existing[1]
+    end
+    -- Primeira vez: gera números únicos e persiste no banco
+    local rg = tostring(math.random(10000000, 99999999))
+    local passport = "BR" .. tostring(math.random(100000, 999999))
+    MySQL.insert.await('INSERT INTO detran_citizen_data (citizenid, rg_number, passport_num) VALUES (?, ?, ?)', {citizenid, rg, passport})
+    return { rg_number = rg, passport_num = passport }
+end
+
 -- =================================================================
 -- PLAYER DATA CALLBACKS
 -- =================================================================
@@ -42,13 +90,14 @@ lib.callback.register('zn_documents:server:getIdentityData', function(source)
     if not Player then return nil end
 
     local charInfo = Player.PlayerData.charinfo
+    local citizenData = GetOrCreateCitizenData(Player.PlayerData.citizenid)
     return {
         fullname = charInfo.firstname .. " " .. charInfo.lastname,
         parents = "JOAO DA SILVA E MARIA DA SILVA",
         birthplace = "LOS SANTOS - SP",
         birthdate = charInfo.birthdate,
         cpf = Player.PlayerData.citizenid,
-        rg = math.random(10000000, 99999999),
+        rg = citizenData.rg_number,  -- Número fixo e persistente no banco
         issue_date = os.date("%d/%m/%Y"),
         citizenid = Player.PlayerData.citizenid
     }
@@ -60,12 +109,13 @@ lib.callback.register('zn_documents:server:getPassportData', function(source)
     if not Player then return nil end
 
     local charInfo = Player.PlayerData.charinfo
+    local citizenData = GetOrCreateCitizenData(Player.PlayerData.citizenid)
     return {
         firstname = charInfo.firstname,
         lastname = charInfo.lastname,
         nationality = "BRASILEIRO",
         sex = charInfo.gender == 0 and "M" or "F",
-        passport_num = "BR" .. math.random(100000, 999999),
+        passport_num = citizenData.passport_num,  -- Número fixo e persistente no banco
         expiry = "10/10/2030",
         citizenid = Player.PlayerData.citizenid
     }
@@ -92,11 +142,15 @@ lib.callback.register('zn_documents:server:issueDocument', function(source, docT
     if Player.PlayerData.money.cash < price and Player.PlayerData.money.bank < price then
         return {success = false, message = Config.Lang['not_enough_money']}
     end
-    
+
+    local removed = false
     if Player.PlayerData.money.bank >= price then
-        Player.Functions.RemoveMoney('bank', price, "document-issue-" .. docType)
+        removed = Player.Functions.RemoveMoney('bank', price, "document-issue-" .. docType)
     else
-        Player.Functions.RemoveMoney('cash', price, "document-issue-" .. docType)
+        removed = Player.Functions.RemoveMoney('cash', price, "document-issue-" .. docType)
+    end
+    if not removed then
+        return {success = false, message = "Erro ao processar pagamento. Tente novamente."}
     end
     
     -- Emitir item usando a exportação do qbx_idcard para garantir metadados corretos
@@ -139,9 +193,21 @@ lib.callback.register('zn_documents:server:getCNHQuestions', function(source)
 end)
 
 -- Validar resultado do teste de CNH
-lib.callback.register('zn_documents:server:validateCNH', function(source, correctAnswers)
+lib.callback.register('zn_documents:server:validateCNH', function(source, data)
     local Player = QBCore.Functions.GetPlayer(source)
     if not Player then return {success = false} end
+    
+    local correctAnswers = 0
+    if data and data.answers then
+        for _, ans in ipairs(data.answers) do
+            for _, q in ipairs(Config.CNH.questions) do
+                if q.question == ans.question and q.correct == ans.answer then
+                    correctAnswers = correctAnswers + 1
+                    break
+                end
+            end
+        end
+    end
     
     if correctAnswers < Config.CNH.correctAnswersNeeded then
         return {success = false, message = Config.Lang['cnh_failed']}
@@ -152,8 +218,15 @@ lib.callback.register('zn_documents:server:validateCNH', function(source, correc
         if Player.PlayerData.money.cash < price and Player.PlayerData.money.bank < price then
             return {success = false, message = Config.Lang['not_enough_money']}
         end
-        if Player.PlayerData.money.cash >= price then Player.Functions.RemoveMoney('cash', price)
-        else Player.Functions.RemoveMoney('bank', price) end
+        local removed = false
+        if Player.PlayerData.money.cash >= price then
+            removed = Player.Functions.RemoveMoney('cash', price, 'cnh-validation')
+        else
+            removed = Player.Functions.RemoveMoney('bank', price, 'cnh-validation')
+        end
+        if not removed then
+            return {success = false, message = "Erro ao processar pagamento da CNH. Tente novamente."}
+        end
     end
     
     -- Emitir item usando a exportação do qbx_idcard
@@ -198,7 +271,12 @@ end)
 lib.callback.register('zn_documents:server:getMyVehicles', function(source)
     local Player = QBCore.Functions.GetPlayer(source)
     if not Player then return {} end
-    return MySQL.query.await('SELECT * FROM detran_vehicles WHERE citizenid = ? ORDER BY created_at DESC', {Player.PlayerData.citizenid}) or {}
+    
+    local vehicles = MySQL.query.await('SELECT * FROM detran_vehicles WHERE citizenid = ? ORDER BY created_at DESC', {Player.PlayerData.citizenid}) or {}
+    for i=1, #vehicles do
+        vehicles[i].ipva_debt = CalculateDynamicIPVA(vehicles[i])
+    end
+    return vehicles
 end)
 
 -- Registrar novo veículo (CRLV)
@@ -215,11 +293,25 @@ lib.callback.register('zn_documents:server:registerVehicle', function(source, da
         return {success = false, message = Config.Lang['not_enough_money']}
     end
     
-    if Player.PlayerData.money.cash >= price then Player.Functions.RemoveMoney('cash', price)
-    else Player.Functions.RemoveMoney('bank', price) end
+    local removed = false
+    if Player.PlayerData.money.cash >= price then
+        removed = Player.Functions.RemoveMoney('cash', price, 'vehicle-register')
+    else
+        removed = Player.Functions.RemoveMoney('bank', price, 'vehicle-register')
+    end
+    if not removed then
+        return {success = false, message = "Erro ao processar pagamento do registro. Tente novamente."}
+    end
+
+    local safeOwner = data.owner_name and string.sub(tostring(data.owner_name), 1, 100) or "N/A"
+    local safeColor = data.color and string.sub(tostring(data.color), 1, 50) or "N/A"
+    local safeDesc = data.description and string.sub(tostring(data.description), 1, 100) or "N/A"
+    local safeEngine = data.engine and string.sub(tostring(data.engine), 1, 50) or "N/A"
+    local safeTires = data.tires and string.sub(tostring(data.tires), 1, 50) or "Standard"
+    local safeGearbox = data.gearbox and string.sub(tostring(data.gearbox), 1, 50) or "Manual"
     
     MySQL.insert.await('INSERT INTO detran_vehicles (citizenid, plate, owner_name, color, description, engine_serial, tire_type, gearbox_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
-    {Player.PlayerData.citizenid, plate, data.owner_name, data.color, data.description, data.engine or "N/A", data.tires or "Standard", data.gearbox or "Manual"})
+    {Player.PlayerData.citizenid, plate, safeOwner, safeColor, safeDesc, safeEngine, safeTires, safeGearbox})
     return {success = true}
 end)
 
@@ -233,11 +325,22 @@ lib.callback.register('zn_documents:server:updateVehicle', function(source, data
         return {success = false, message = Config.Lang['not_enough_money']}
     end
     
-    if Player.PlayerData.money.cash >= price then Player.Functions.RemoveMoney('cash', price)
-    else Player.Functions.RemoveMoney('bank', price) end
+    local removed = false
+    if Player.PlayerData.money.cash >= price then
+        removed = Player.Functions.RemoveMoney('cash', price, 'vehicle-update')
+    else
+        removed = Player.Functions.RemoveMoney('bank', price, 'vehicle-update')
+    end
+    if not removed then
+        return {success = false, message = "Erro ao processar pagamento da atualização. Tente novamente."}
+    end
+
+    local safeOwner = data.owner_name and string.sub(tostring(data.owner_name), 1, 100) or "N/A"
+    local safeColor = data.color and string.sub(tostring(data.color), 1, 50) or "N/A"
+    local safeDesc = data.description and string.sub(tostring(data.description), 1, 100) or "N/A"
     
     MySQL.update.await('UPDATE detran_vehicles SET owner_name = ?, color = ?, description = ? WHERE plate = ? AND citizenid = ?', 
-    {data.owner_name, data.color, data.description, data.plate, Player.PlayerData.citizenid})
+    {safeOwner, safeColor, safeDesc, data.plate, Player.PlayerData.citizenid})
     return {success = true}
 end)
 
@@ -251,8 +354,15 @@ lib.callback.register('zn_documents:server:deleteVehicle', function(source, plat
         if Player.PlayerData.money.cash < price and Player.PlayerData.money.bank < price then
             return {success = false, message = Config.Lang['not_enough_money']}
         end
-        if Player.PlayerData.money.cash >= price then Player.Functions.RemoveMoney('cash', price)
-        else Player.Functions.RemoveMoney('bank', price) end
+        local removed = false
+        if Player.PlayerData.money.cash >= price then
+            removed = Player.Functions.RemoveMoney('cash', price, 'vehicle-delete')
+        else
+            removed = Player.Functions.RemoveMoney('bank', price, 'vehicle-delete')
+        end
+        if not removed then
+            return {success = false, message = "Erro ao processar pagamento da exclusão. Tente novamente."}
+        end
     end
     
     MySQL.query.await('DELETE FROM detran_vehicles WHERE plate = ? AND citizenid = ?', {plate, Player.PlayerData.citizenid})
@@ -262,7 +372,8 @@ end)
 -- Consultar veículo publicamente
 lib.callback.register('zn_documents:server:consultVehicle', function(source, query)
     if not Config.Consultation.allowPublicConsultation then return {success = false, message = "Consulta desativada!"} end
-    local vehicle = MySQL.query.await('SELECT * FROM detran_vehicles WHERE plate = ? OR LOWER(owner_name) LIKE ?', {string.upper(query), '%'..string.lower(query)..'%'})
+    local safeQuery = string.sub(tostring(query or ""), 1, 20)
+    local vehicle = MySQL.query.await('SELECT * FROM detran_vehicles WHERE plate = ? OR LOWER(owner_name) LIKE ?', {string.upper(safeQuery), '%'..string.lower(safeQuery)..'%'})
     if not vehicle or not vehicle[1] then return {success = false, message = Config.Lang['plate_not_found']} end
     
     local v = vehicle[1]
@@ -276,20 +387,34 @@ lib.callback.register('zn_documents:server:consultVehicle', function(source, que
         gearbox = v.gearbox_type,
         image_url = v.image_url,
         observations = v.observations,
-        ipva_debt = tonumber(v.ipva_debt) or 0,
+        ipva_debt = CalculateDynamicIPVA(v),
         owner_name = Config.Consultation.showOwnerName and v.owner_name or nil
     }
 end)
 
--- Salvar informações de gestão do DMV (Polícia/Prefeitura)
+-- Salvar informações de gestão do DMV (Polícia/Prefeitura/Dono)
 lib.callback.register('zn_documents:server:saveVehicleManagement', function(source, data)
     local Player = QBCore.Functions.GetPlayer(source)
     if not Player then return {success = false} end
     
-    -- Aqui você pode adicionar verificação de job se quiser (ex: se for policia)
+    local citizenid = Player.PlayerData.citizenid
+    
+    -- Verifica no banco de dados se o veículo pertence ao jogador
+    local vehicle = MySQL.query.await('SELECT citizenid FROM detran_vehicles WHERE plate = ?', {data.plate})
+    
+    if not vehicle or not vehicle[1] then
+        return {success = false, message = "Veículo não encontrado no banco de dados."}
+    end
+    
+    if vehicle[1].citizenid ~= citizenid then
+        return {success = false, message = "Você não tem permissão para editar informações de um veículo que não é seu!"}
+    end
+    
+    local safeImg = data.image_url and string.sub(tostring(data.image_url), 1, 500) or ""
+    local safeObs = data.observations and string.sub(tostring(data.observations), 1, 2000) or ""
     
     MySQL.update.await('UPDATE detran_vehicles SET image_url = ?, observations = ? WHERE plate = ?', 
-    {data.image_url, data.observations, data.plate})
+    {safeImg, safeObs, data.plate})
     
     return {success = true}
 end)
@@ -302,7 +427,18 @@ end)
 lib.callback.register('zn_documents:server:getIPVADebts', function(source)
     local Player = QBCore.Functions.GetPlayer(source)
     if not Player then return {} end
-    return MySQL.query.await('SELECT plate, owner_name, ipva_debt FROM detran_vehicles WHERE citizenid = ? AND ipva_debt > 0', {Player.PlayerData.citizenid}) or {}
+    
+    local vehicles = MySQL.query.await('SELECT * FROM detran_vehicles WHERE citizenid = ?', {Player.PlayerData.citizenid}) or {}
+    local debts = {}
+    
+    for i=1, #vehicles do
+        local d = CalculateDynamicIPVA(vehicles[i])
+        if d > 0 then
+            table.insert(debts, { plate = vehicles[i].plate, owner_name = vehicles[i].owner_name, ipva_debt = d })
+        end
+    end
+    
+    return debts
 end)
 
 -- Pagar dívida de IPVA
@@ -310,20 +446,31 @@ lib.callback.register('zn_documents:server:payIPVA', function(source, plate)
     local Player = QBCore.Functions.GetPlayer(source)
     if not Player then return {success = false} end
     
-    local vehicle = MySQL.query.await('SELECT ipva_debt FROM detran_vehicles WHERE plate = ? AND citizenid = ?', {plate, Player.PlayerData.citizenid})
+    local vehicle = MySQL.query.await('SELECT * FROM detran_vehicles WHERE plate = ? AND citizenid = ?', {plate, Player.PlayerData.citizenid})
     if not vehicle or not vehicle[1] then return {success = false} end
     
-    local debt = math.floor(tonumber(vehicle[1].ipva_debt) or 0)
+    local debt = CalculateDynamicIPVA(vehicle[1])
     if debt <= 0 then return {success = false, message = "Sem dívida!"} end
     
     if Player.PlayerData.money.cash < debt and Player.PlayerData.money.bank < debt then
         return {success = false, message = Config.Lang['not_enough_money']}
     end
     
-    if Player.PlayerData.money.bank >= debt then Player.Functions.RemoveMoney('bank', debt)
-    else Player.Functions.RemoveMoney('cash', debt) end
+    local removed = false
+    if Player.PlayerData.money.bank >= debt then
+        removed = Player.Functions.RemoveMoney('bank', debt, 'ipva-payment')
+    else
+        removed = Player.Functions.RemoveMoney('cash', debt, 'ipva-payment')
+    end
+    if not removed then
+        return {success = false, message = "Erro ao processar pagamento do IPVA. Tente novamente."}
+    end
+
+    -- Update impostômetro
+    local currentImpostometro = GetResourceKvpInt('zn_documents_impostometro') or 0
+    SetResourceKvpInt('zn_documents_impostometro', currentImpostometro + debt)
     
-    MySQL.update.await('UPDATE detran_vehicles SET ipva_debt = 0 WHERE plate = ?', {plate})
+    MySQL.update.await('UPDATE detran_vehicles SET ipva_debt = 0, last_ipva_update = CURRENT_TIMESTAMP WHERE plate = ?', {plate})
     return {success = true}
 end)
 
@@ -332,12 +479,19 @@ lib.callback.register('zn_documents:server:getTotalIPVADebt', function(source)
     local Player = QBCore.Functions.GetPlayer(source)
     if not Player then return 0 end
     
-    local result = MySQL.query.await('SELECT SUM(ipva_debt) as total FROM detran_vehicles WHERE citizenid = ? AND ipva_debt > 0', {Player.PlayerData.citizenid})
-    if result and result[1] and result[1].total then
-        return tonumber(result[1].total) or 0
+    local result = MySQL.query.await('SELECT * FROM detran_vehicles WHERE citizenid = ?', {Player.PlayerData.citizenid})
+    local totalDebt = 0
+    if result then
+        for i=1, #result do
+            totalDebt = totalDebt + CalculateDynamicIPVA(result[i])
+        end
     end
-    
-    return 0
+    return totalDebt
+end)
+
+-- Obter Impostômetro
+lib.callback.register('zn_documents:server:getImpostometro', function(source)
+    return GetResourceKvpInt('zn_documents_impostometro') or 0
 end)
 
 -- =================================================================
@@ -352,11 +506,12 @@ exports('consultVehicle', function(plate)
     end
     
     local v = vehicle[1]
+    local dynDebt = CalculateDynamicIPVA(v)
     return {
         registered = true,
         owner = v.owner_name,
         description = v.description,
-        ipva_debt = tonumber(v.ipva_debt) or 0,
-        status = (tonumber(v.ipva_debt) or 0) > 0 and "DÉBITO PENDENTE" or "EM DIA"
+        ipva_debt = dynDebt,
+        status = dynDebt > 0 and "DÉBITO PENDENTE" or "EM DIA"
     }
 end)
